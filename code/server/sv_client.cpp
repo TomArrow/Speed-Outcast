@@ -196,6 +196,10 @@ void SV_SendClientGameState( client_t *client ) {
 
 	MSG_Init( &msg, msgBuffer, sizeof( msgBuffer ) );
 
+	// NOTE, MRE: all server->client messages now acknowledge
+	// let the client know which reliable clientCommands we have received
+	MSG_WriteLong(&msg, client->lastClientCommand);
+
 	// send the gamestate
 	MSG_WriteByte( &msg, svc_gamestate );
 	MSG_WriteLong( &msg, client->reliableSequence );
@@ -220,7 +224,12 @@ void SV_SendClientGameState( client_t *client ) {
 		MSG_WriteDeltaEntity( &msg, &nullstate, base, qtrue );
 	}
 
-	MSG_WriteByte( &msg, 0 );
+	MSG_WriteByte( &msg, svc_EOF );
+
+	MSG_WriteLong(&msg, client - svs.clients);
+
+	// write the checksum feed
+	MSG_WriteLong(&msg, 0);
 
 	// check for overflow
 	if ( msg.overflowed ) {
@@ -453,7 +462,7 @@ On very fast clients, there may be multiple usercmd packed into
 each of the backup packets.
 ==================
 */
-static void SV_UserMove( client_t *cl, msg_t *msg ) {
+static void SV_UserMove( client_t *cl, msg_t *msg, qboolean delta) {
 	int			i, start;
 	int			cmdNum;
 	int			firstNum;
@@ -461,13 +470,16 @@ static void SV_UserMove( client_t *cl, msg_t *msg ) {
 	usercmd_t	nullcmd;
 	usercmd_t	cmds[MAX_PACKET_USERCMDS];
 	usercmd_t	*cmd, *oldcmd;
-	int			clientTime;
-	int			serverId;
+	//int			clientTime;
+	//int			serverId;
 
-	cl->reliableAcknowledge = MSG_ReadLong( msg );
-	serverId = MSG_ReadLong( msg );
-	clientTime = MSG_ReadLong( msg );
-	cl->deltaMessage = MSG_ReadLong( msg );
+	//cl->reliableAcknowledge = MSG_ReadLong( msg );
+	//serverId = MSG_ReadLong( msg );
+	//clientTime = MSG_ReadLong( msg );
+	cl->deltaMessage = cl->netchan.incomingAcknowledged;//MSG_ReadLong( msg );
+	if (!delta) {
+		cl->deltaMessage = -1;
+	}
 
 	// cmdNum is the command number of the most recent included usercmd
 	cmdNum = MSG_ReadLong( msg );
@@ -489,18 +501,6 @@ static void SV_UserMove( client_t *cl, msg_t *msg ) {
 		cmd = &cmds[i];
 		MSG_ReadDeltaUsercmd( msg, oldcmd, cmd );
 		oldcmd = cmd;
-	}
-
-	// if this is a usercmd from a previous gamestate,
-	// ignore it or retransmit the current gamestate
-	if ( serverId != sv.serverId ) {
-		// if we can tell that the client has dropped the last
-		// gamestate we sent them, resend it
-		if ( cl->netchan.incomingAcknowledged > cl->gamestateMessageNum ) {
-			Com_DPrintf( "%s : dropped gamestate, resending\n", cl->name );
-			SV_SendClientGameState( cl );
-		}
-		return;
 	}
 
 	// if this is the first usercmd we have received
@@ -580,6 +580,25 @@ Parse a client packet
 */
 void SV_ExecuteClientMessage( client_t *cl, msg_t *msg ) {
 	int			c;
+	int			serverId;
+
+	MSG_Bitstream(msg);
+
+	serverId = MSG_ReadLong(msg);
+	cl->netchan.incomingAcknowledged = MSG_ReadLong(msg);
+	cl->reliableAcknowledge = MSG_ReadLong(msg);
+
+	// if this is a usercmd from a previous gamestate,
+	// ignore it or retransmit the current gamestate
+	if (serverId != sv.serverId) {
+		// if we can tell that the client has dropped the last
+		// gamestate we sent them, resend it
+		if ( cl->netchan.incomingAcknowledged > cl->gamestateMessageNum ) {
+			Com_DPrintf( "%s : dropped gamestate, resending\n", cl->name );
+			SV_SendClientGameState( cl );
+		}
+		return;
+	}
 
 	while( 1 ) {
 		if ( msg->readcount > msg->cursize ) {
@@ -588,7 +607,7 @@ void SV_ExecuteClientMessage( client_t *cl, msg_t *msg ) {
 		}	
 
 		c = MSG_ReadByte( msg );
-		if ( c == -1 ) {
+		if ( c == svc_EOF ) {
 			break;
 		}
 				
@@ -601,7 +620,11 @@ void SV_ExecuteClientMessage( client_t *cl, msg_t *msg ) {
 			break;
 
 		case clc_move:
-			SV_UserMove( cl, msg );
+			SV_UserMove( cl, msg, qtrue );
+			break;
+
+		case clc_moveNoDelta:
+			SV_UserMove( cl, msg, qfalse );
 			break;
 
 		case clc_clientCommand:

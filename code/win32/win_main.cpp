@@ -798,7 +798,7 @@ sysEvent_t Sys_GetEvent( void ) {
 	}
 
 	// check for network packets
-	MSG_Init( &netmsg, sys_packetReceived, sizeof( sys_packetReceived ) );
+	MSG_InitOOB( &netmsg, sys_packetReceived, sizeof( sys_packetReceived ) );
 
 	// return if we have data
 	if ( eventHead > eventTail ) {

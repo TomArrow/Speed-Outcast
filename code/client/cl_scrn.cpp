@@ -114,6 +114,45 @@ void SCR_DrawBigChar( int x, int y, int ch ) {
 					   cls.charSetShader );
 
 }
+/*
+** SCR_DrawChar
+** chars are drawn at 640*480 virtual screen size
+*/
+static void SCR_DrawChar(int x, int y, float size, int ch) {
+	int row, col;
+	float frow, fcol;
+	float	ax, ay, aw, ah;
+
+	ch &= 255;
+
+	if (ch == ' ') {
+		return;
+	}
+
+	if (y < -size) {
+		return;
+	}
+
+	ax = x;
+	ay = y;
+	aw = size;
+	ah = size;
+
+	row = ch >> 4;
+	col = ch & 15;
+
+	float size2;
+
+	frow = row * 0.0625;
+	fcol = col * 0.0625;
+	size = 0.03125;
+	size2 = 0.0625;
+
+	re.DrawStretchPic(ax, ay, aw, ah,
+		fcol, frow,
+		fcol + size, frow + size2,
+		cls.charSetShader);
+}
 
 /*
 ** SCR_DrawSmallChar
@@ -217,6 +256,50 @@ void SCR_DrawBigStringExt( int x, int y, const char *string, float *setColor, qb
 	re.SetColor( NULL );
 }
 
+static void SCR_DrawStringExt(int x, int y, float size, const char* string, const float* setColor, qboolean forceColor) {
+	vec4_t		color;
+	const char* s;
+	int			xx;
+
+
+	// draw the drop shadow
+	color[0] = color[1] = color[2] = 0;
+	color[3] = setColor[3];
+	re.SetColor(color);
+	s = string;
+	xx = x;
+	while (*s) {
+		if (Q_IsColorString(s)) {
+			s += 2;
+			continue;
+		}
+		SCR_DrawChar(xx + 2, y + 2, size, *s);
+		xx += size;
+		s++;
+	}
+
+
+	// draw the colored text
+	s = string;
+	xx = x;
+	re.SetColor(setColor);
+	while (*s) {
+		if (Q_IsColorString(s)) {
+			if (!forceColor) {
+				memcpy(color, g_color_table[ColorIndex(*(s + 1))], sizeof(color));
+				color[3] = setColor[3];
+				re.SetColor(color);
+			}
+			s += 2;
+			continue;
+		}
+		SCR_DrawChar(xx, y, size, *s);
+		xx += size;
+		s++;
+	}
+	re.SetColor(NULL);
+}
+
 
 void SCR_DrawBigString( int x, int y, const char *s, float alpha ) {
 	float	color[4];
@@ -258,6 +341,38 @@ int	SCR_GetBigStringWidth( const char *str ) {
 }
 
 //===============================================================================
+
+//===============================================================================
+
+/*
+=================
+SCR_DrawDemoRecording
+=================
+*/
+void SCR_DrawDemoRecording(void) {
+	char	string[1024];
+	int		pos;
+
+	if (!clc.demorecording) {
+		return;
+	}
+	if (clc.spDemoRecording) {
+		return;
+	}
+
+	/*if (cl_drawRecording->integer >= 2 && cls.recordingShader) {
+		static const float width = 60.0f, height = 15.0f;
+		re.SetColor(NULL);
+		re.DrawStretchPic(0, cls.glconfig.vidHeight - height, width, height,
+			0, 0, 1, 1, cls.recordingShader, cls.xadjust, cls.yadjust);
+	}
+	else */if (cl_drawRecording->integer) {
+		pos = FS_FTell(clc.demofile);
+		sprintf(string, "RECORDING %s: %ik", clc.demoName, pos / 1024);
+		SCR_DrawStringExt(320 - (int)strlen(string) * 4, 20, 8, string, g_color_table[7], qtrue);
+	}
+}
+
 
 
 /*
@@ -399,6 +514,7 @@ void SCR_DrawScreenField( stereoFrame_t stereoFrame ) {
 			{
 				CL_CGameRendering( stereoFrame );
 			}
+			SCR_DrawDemoRecording();
 			break;
 		}
 	}

@@ -82,6 +82,7 @@ typedef struct {
 									// frames may need to be packed into a single packet
 
 	int			packetTime[PACKET_BACKUP];	// cls.realtime sent, for calculating pings
+	int			packetServerTime[PACKET_BACKUP];	// usercmd->serverTime when packet was sent
 	int			packetCmdNumber[PACKET_BACKUP];	// cmdNumber when packet was sent
 
 	// the client maintains its own idea of view angles, which are
@@ -134,9 +135,26 @@ typedef struct {
 	int			reliableAcknowledge;
 	char		*reliableCommands[MAX_RELIABLE_COMMANDS];
 
+	// server message (unreliable) and command (reliable) sequence
+	// numbers are NOT cleared at level changes, but continue to
+	// increase as long as the connection is valid
+
+	// message sequence is used by both the network layer and the
+	// delta compression layer
+	int			serverMessageSequence;
+
 	// reliable messages received from server
 	int			serverCommandSequence;
 	char		*serverCommands[MAX_RELIABLE_COMMANDS];
+
+	// demo information
+	char			demoName[MAX_QPATH];
+	qboolean		spDemoRecording;
+	qboolean		demorecording;
+	qboolean		demoplaying;
+	qboolean		demowaiting;	// don't record until a non-delta message is received
+	qboolean		firstDemoFrameSkipped;
+	fileHandle_t	demofile;
 
 	// big stuff at end of structure so most offsets are 15 bits or less
 	netchan_t	netchan;
@@ -260,6 +278,8 @@ extern	cvar_t	*cl_packetdup;
 extern	cvar_t	*cl_shownet;
 extern	cvar_t	*cl_timeNudge;
 extern	cvar_t	*cl_showTimeDelta;
+
+extern	cvar_t* cl_drawRecording;
 
 extern	cvar_t	*cl_yawspeed;
 extern	cvar_t	*cl_pitchspeed;

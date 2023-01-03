@@ -140,8 +140,9 @@ static void SV_WriteSnapshotToClient( client_t *client, msg_t *msg ) {
 
 	MSG_WriteByte (msg, svc_snapshot);
 
+	// NOTE, MRE: now sent at the start of every message from server to client
 	// let the client know which reliable clientCommands we have received
-	MSG_WriteLong( msg, client->lastClientCommand );
+	// MSG_WriteLong( msg, client->lastClientCommand );
 
 	// send over the current server time so the client can drift
 	// its view of time to try to match
@@ -149,9 +150,9 @@ static void SV_WriteSnapshotToClient( client_t *client, msg_t *msg ) {
 
 	// we must write a message number, because recorded demos won't have
 	// the same network message sequences
-	MSG_WriteLong (msg, client->netchan.outgoingSequence );
+	//MSG_WriteLong (msg, client->netchan.outgoingSequence );
 	MSG_WriteByte (msg, lastframe);				// what we are delta'ing from
-	MSG_WriteLong (msg, client->cmdNum);		// we have executed up to here
+	//MSG_WriteLong (msg, client->cmdNum);		// we have executed up to here
 
 	snapFlags = client->rateDelayed | ( client->droppedCommands << 1 );
 	client->droppedCommands = 0;
@@ -528,6 +529,7 @@ void SV_SendMessageToClient( msg_t *msg, client_t *client ) {
 	client->frames[client->netchan.outgoingSequence & PACKET_MASK].messageSent = sv.time;
 
 	// send the datagram
+	MSG_WriteByte(msg, svc_EOF);
 	Netchan_Transmit( &client->netchan, msg->cursize, msg->data );
 
 	// set nextSnapshotTime based on rate and requested number of updates
@@ -596,6 +598,10 @@ void SV_SendClientSnapshot( client_t *client ) {
 
 	MSG_Init (&msg, msg_buf, sizeof(msg_buf));
 	msg.allowoverflow = qtrue;
+
+	// NOTE, MRE: all server->client messages now acknowledge
+	// let the client know which reliable clientCommands we have received
+	MSG_WriteLong(&msg, client->lastClientCommand);
 
 	// (re)send any reliable server commands
 	SV_UpdateServerCommandsToClient( client, &msg );

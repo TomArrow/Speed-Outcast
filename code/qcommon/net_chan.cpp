@@ -128,10 +128,10 @@ void Netchan_Transmit( netchan_t *chan, int length, const byte *data ) {
 		fragmentStart = 0;
 		do {
 			// write the packet header
-			MSG_Init (&send, send_buf, sizeof(send_buf));
+			MSG_InitOOB (&send, send_buf, sizeof(send_buf));
 
 			MSG_WriteLong( &send, chan->outgoingSequence | FRAGMENT_BIT );
-			MSG_WriteLong( &send, chan->incomingSequence );
+			//MSG_WriteLong( &send, chan->incomingSequence );
 
 			// send the qport if we are a client
 			if ( chan->sock == NS_CLIENT ) {
@@ -175,10 +175,10 @@ void Netchan_Transmit( netchan_t *chan, int length, const byte *data ) {
 	}
 
 	// write the packet header
-	MSG_Init (&send, send_buf, sizeof(send_buf));
+	MSG_InitOOB (&send, send_buf, sizeof(send_buf));
 
 	MSG_WriteLong( &send, chan->outgoingSequence );
-	MSG_WriteLong( &send, chan->incomingSequence );
+	//MSG_WriteLong( &send, chan->incomingSequence );
 	chan->outgoingSequence++;
 
 	// send the qport if we are a client
@@ -225,9 +225,9 @@ qboolean Netchan_Process( netchan_t *chan, msg_t *msg ) {
 	Netchan_ScramblePacket( msg );
 
 	// get sequence numbers		
-	MSG_BeginReading( msg );
+	MSG_BeginReadingOOB( msg );
 	sequence = MSG_ReadLong( msg );
-	sequence_ack = MSG_ReadLong( msg );
+	//sequence_ack = MSG_ReadLong( msg );
 
 	// check for fragment information
 	if ( sequence & FRAGMENT_BIT ) {
@@ -362,7 +362,7 @@ qboolean Netchan_Process( netchan_t *chan, msg_t *msg ) {
 	// the message can now be read from the current message pointer
 	//
 	chan->incomingSequence = sequence;
-	chan->incomingAcknowledged = sequence_ack;
+	//chan->incomingAcknowledged = sequence_ack;
 
 	return qtrue;
 }

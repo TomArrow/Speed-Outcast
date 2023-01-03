@@ -673,6 +673,19 @@ void CL_WritePacket( void ) {
 
 	MSG_Init( &buf, data, sizeof(data) );
 
+	MSG_Bitstream(&buf);
+	// write the current serverId so the server
+	// can tell if this is from the current gameState
+	MSG_WriteLong(&buf, cl.serverId);
+
+	// write the last message we received, which can
+	// be used for delta compression, and is also used
+	// to tell if we dropped a gamestate
+	MSG_WriteLong(&buf, clc.serverMessageSequence);
+
+	// write the last reliable message we received
+	MSG_WriteLong(&buf, clc.serverCommandSequence);
+
 	// write any unacknowledged clientCommands
 	for ( i = clc.reliableAcknowledge + 1 ; i <= clc.reliableSequence ; i++ ) {
 		MSG_WriteByte( &buf, clc_clientCommand );
@@ -696,27 +709,32 @@ void CL_WritePacket( void ) {
 	}
 	if ( count >= 1 ) {
 		// begin a client move command
-		MSG_WriteByte (&buf, clc_move);
+		if (clc.demowaiting) {
+			MSG_WriteByte(&buf, clc_moveNoDelta);
+		}
+		else {
+			MSG_WriteByte(&buf, clc_move);
+		}
 
 		// write the last reliable message we received
-		MSG_WriteLong( &buf, clc.serverCommandSequence );
+		//MSG_WriteLong( &buf, clc.serverCommandSequence );
 
 		// write the current serverId so the server
 		// can tell if this is from the current gameState
-		MSG_WriteLong (&buf, cl.serverId);
+		//MSG_WriteLong (&buf, cl.serverId);
 
 		// write the current time
-		MSG_WriteLong (&buf, cls.realtime);
+		//MSG_WriteLong (&buf, cls.realtime);
 
 		// let the server know what the last messagenum we
 		// got was, so the next message can be delta compressed
 		// FIXME: this could just be a bit flag, with the message implicit
 		// from the unreliable ack of the netchan
-		if (cl_nodelta->integer || !cl.frame.valid) {
-			MSG_WriteLong (&buf, -1);	// no compression
-		} else {
-			MSG_WriteLong (&buf, cl.frame.messageNum);
-		}
+		//if (cl_nodelta->integer || !cl.frame.valid) {
+		//	MSG_WriteLong (&buf, -1);	// no compression
+		//} else {
+		//	MSG_WriteLong (&buf, cl.frame.messageNum);
+		//}
 
 		// write the cmdNumber so the server can determine which ones it
 		// has already received
@@ -736,11 +754,14 @@ void CL_WritePacket( void ) {
 		}
 	}
 
+	MSG_WriteByte(&buf, svc_EOF);
+
 	//
 	// deliver the message
 	//
 	packetNum = clc.netchan.outgoingSequence & PACKET_MASK;
 	cl.packetTime[ packetNum ] = cls.realtime;
+	cl.packetServerTime[packetNum] = oldcmd->serverTime;
 	cl.packetCmdNumber[ packetNum ] = cl.cmdNumber;
 	clc.lastPacketSentTime = cls.realtime;
 	Netchan_Transmit (&clc.netchan, buf.cursize, buf.data);	

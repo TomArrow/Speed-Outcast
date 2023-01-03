@@ -601,8 +601,8 @@ static qboolean GLW_CreateWindow( int width, int height, int colorbits, qboolean
 		}
 		else
 		{
-			vid_xpos = ri.Cvar_Get ("vid_xpos", "", 0);
-			vid_ypos = ri.Cvar_Get ("vid_ypos", "", 0);
+			vid_xpos = ri.Cvar_Get ("vid_xpos", "100", 0);
+			vid_ypos = ri.Cvar_Get ("vid_ypos", "100", 0);
 			x = vid_xpos->integer;
 			y = vid_ypos->integer;
 

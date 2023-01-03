@@ -249,7 +249,7 @@ static void SV_ConnectionlessPacket( netadr_t from, msg_t *msg ) {
 	char	*s;
 	char	*c;
 
-	MSG_BeginReading( msg );
+	MSG_BeginReadingOOB( msg );
 	MSG_ReadLong( msg );		// skip the -1 marker
 
 	s = MSG_ReadStringLine( msg );
@@ -296,9 +296,9 @@ void SV_PacketEvent( netadr_t from, msg_t *msg ) {
 
 	// read the qport out of the message so we can fix up
 	// stupid address translating routers
-	MSG_BeginReading( msg );
+	MSG_BeginReadingOOB( msg );
 	MSG_ReadLong( msg );				// sequence number
-	MSG_ReadLong( msg );				// sequence number
+	//MSG_ReadLong( msg );				// sequence number
 	qport = MSG_ReadShort( msg ) & 0xffff;
 
 	// find which client the message is from

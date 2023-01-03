@@ -26,7 +26,8 @@
 typedef struct {
 	qboolean	allowoverflow;	// if false, do a Com_Error
 	qboolean	overflowed;		// set to true if the buffer size failed (with allowoverflow set)
-	byte	*data;
+	qboolean	oob;			// set to true if the buffer size failed (with allowoverflow set)
+	byte* data;
 	int		maxsize;
 	int		cursize;
 	int		readcount;
@@ -34,9 +35,11 @@ typedef struct {
 } msg_t;
 
 void MSG_Init (msg_t *buf, byte *data, int length);
+void MSG_InitOOB(msg_t* buf, byte* data, int length);
 void MSG_Clear (msg_t *buf);
-void *MSG_GetSpace (msg_t *buf, int length);
+//void *MSG_GetSpace (msg_t *buf, int length);
 void MSG_WriteData (msg_t *buf, const void *data, int length);
+void MSG_Bitstream(msg_t* buf);
 
 
 struct usercmd_s;
@@ -51,6 +54,7 @@ void MSG_WriteLong (msg_t *sb, int c);
 void MSG_WriteString (msg_t *sb, const char *s);
 
 void	MSG_BeginReading (msg_t *sb);
+void	MSG_BeginReadingOOB(msg_t* sb);
 
 int		MSG_ReadBits( msg_t *msg, int bits );
 
@@ -206,7 +210,8 @@ enum svc_ops_e {
 	svc_baseline,				// only in gamestate messages
 	svc_serverCommand,			// [string] to be executed by client game module
 	svc_download,				// [short] size [size bytes]
-	svc_snapshot
+	svc_snapshot,
+	svc_EOF
 };
 
 
@@ -217,6 +222,7 @@ enum clc_ops_e {
 	clc_bad,
 	clc_nop, 		
 	clc_move,				// [[usercmd_t]
+	clc_moveNoDelta,
 	clc_clientCommand		// [string] message
 };
 

@@ -45,7 +45,7 @@ Cbuf_Init
 */
 void Cbuf_Init (void)
 {
-	MSG_Init (&cmd_text, cmd_text_buf, sizeof(cmd_text_buf));
+	MSG_InitOOB (&cmd_text, cmd_text_buf, sizeof(cmd_text_buf));
 }
 
 /*

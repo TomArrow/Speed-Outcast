@@ -191,7 +191,8 @@ void CL_ParseSnapshot( msg_t *msg ) {
 	int			i, packetNum;
 
 	// get the reliable sequence acknowledge number
-	clc.reliableAcknowledge = MSG_ReadLong( msg );
+	// NOTE: now sent with all server to client messages
+	//clc.reliableAcknowledge = MSG_ReadLong( msg );
 
 	// read in the new snapshot to a temporary buffer
 	// we will only copy to cl.frame if it is valid
@@ -199,14 +200,15 @@ void CL_ParseSnapshot( msg_t *msg ) {
 
 	newSnap.serverCommandNum = clc.serverCommandSequence;
 	newSnap.serverTime = MSG_ReadLong( msg );
-	newSnap.messageNum = MSG_ReadLong( msg );
+	newSnap.messageNum = clc.serverMessageSequence;
+	//newSnap.messageNum = MSG_ReadLong( msg );
 	deltaNum = MSG_ReadByte( msg );
 	if ( !deltaNum ) {
 		newSnap.deltaNum = -1;
 	} else {
 		newSnap.deltaNum = newSnap.messageNum - deltaNum;
 	}
-	newSnap.cmdNum = MSG_ReadLong( msg );
+	//newSnap.cmdNum = MSG_ReadLong( msg );
 	newSnap.snapFlags = MSG_ReadByte( msg );
 
 	// If the frame is delta compressed from data that we
@@ -216,6 +218,7 @@ void CL_ParseSnapshot( msg_t *msg ) {
 	if ( newSnap.deltaNum <= 0 ) {
 		newSnap.valid = qtrue;		// uncompressed frame
 		old = NULL;
+		clc.demowaiting = qfalse;	// we can start recording now
 	} else {
 		old = &cl.frames[newSnap.deltaNum & PACKET_MASK];
 		if ( !old->valid ) {
@@ -268,10 +271,11 @@ void CL_ParseSnapshot( msg_t *msg ) {
 	// copy to the current good spot
 	cl.frame = newSnap;
 
-	// calculate ping time
+	//  
 	for ( i = 0 ; i < PACKET_BACKUP ; i++ ) {
 		packetNum = ( clc.netchan.outgoingSequence - 1 - i ) & PACKET_MASK;
-		if ( cl.frame.cmdNum == cl.packetCmdNumber[ packetNum ] ) {
+		//if ( cl.frame.cmdNum == cl.packetCmdNumber[ packetNum ] ) {
+		if (cl.frame.ps.commandTime >= cl.packetServerTime[packetNum]) {
 			cl.frame.ping = cls.realtime - cl.packetTime[ packetNum ];
 			break;
 		}
@@ -363,7 +367,7 @@ void CL_ParseGamestate( msg_t *msg ) {
 	while ( 1 ) {
 		cmd = MSG_ReadByte( msg );
 
-		if ( cmd <= 0 ) {
+		if ( cmd == svc_EOF ) {
 			break;
 		}
 		
@@ -400,6 +404,10 @@ void CL_ParseGamestate( msg_t *msg ) {
 			Com_Error( ERR_DROP, "CL_ParseGamestate: bad command byte" );
 		}
 	}
+
+	MSG_ReadLong(msg); // clc.clientNum = 
+	// read the checksum feed
+	MSG_ReadLong(msg); // clc.checksumFeed = 
 
 	// parse serverId and other cvars
 	CL_SystemInfoChanged();
@@ -466,6 +474,11 @@ void CL_ParseServerMessage( msg_t *msg ) {
 		Com_Printf ("------------------\n");
 	}
 
+	MSG_Bitstream(msg);
+
+	// get the reliable sequence acknowledge number
+	clc.reliableAcknowledge = MSG_ReadLong(msg);
+
 	//
 	// parse the message
 	//
@@ -477,7 +490,7 @@ void CL_ParseServerMessage( msg_t *msg ) {
 
 		cmd = MSG_ReadByte( msg );
 
-		if ( cmd == -1 ) {
+		if ( cmd == svc_EOF ) {
 			SHOWNET( msg, "END OF MESSAGE" );
 			break;
 		}
