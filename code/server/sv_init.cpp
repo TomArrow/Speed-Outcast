@@ -165,7 +165,8 @@ void SV_Startup( void ) {
 	const int iSize = sizeof(client_t) * 1;
 	svs.clients = (struct client_s *) Z_Malloc (iSize, TAG_CLIENTS, qfalse );
 	memset(svs.clients,0,iSize);
-	svs.numSnapshotEntities = 1 * 4 * 64;
+	//svs.numSnapshotEntities = 1 * 4 * 64;
+	svs.numSnapshotEntities = 1 * PACKET_BACKUP * 64; // Idk why it was so low, but I want delta messages and with a lot of action this prevents it.
 	svs.initialized = qtrue;
 
 	Cvar_Set( "sv_running", "1" );
