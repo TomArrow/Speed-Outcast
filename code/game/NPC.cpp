@@ -2032,6 +2032,126 @@ void NPC_CheckInSolid(void)
 	}
 }
 
+extern qboolean ValidAnimFileIndex(int index);
+// Set some facial anims on game side so we can save them in demos.
+qboolean G_CG_G2PlayerHeadAnims(gentity_t* gent)
+{
+	if (!ValidAnimFileIndex(gent->client->clientInfo.animFileIndex))
+	{
+		return qfalse;
+	}
+
+	if (gent->faceBone == BONE_INDEX_INVALID)
+	{	// i don't have a face
+		return qfalse;
+	}
+
+	int anim = -1;
+	qboolean blink = qfalse;
+
+	if (gent->health <= 0)
+	{//Dead people close their eyes and don't make faces!
+		anim = FACE_DEAD;
+	}
+	else
+	{
+		if (!gent->client->facial_blink)
+		{	// set the timers
+			gent->client->facial_blink = level.time + Q_flrand(4000.0, 8000.0);
+			gent->client->facial_frown = level.time + Q_flrand(6000.0, 10000.0);
+			gent->client->facial_aux = level.time + Q_flrand(6000.0, 10000.0);
+		}
+
+		//are we blinking?
+		if (gent->client->facial_blink < 0)
+		{	// yes, check if we are we done blinking ?
+			if (-(gent->client->facial_blink) < level.time)
+			{	// yes, so reset blink timer
+				gent->client->facial_blink = level.time + Q_flrand(4000.0, 8000.0);
+				blink= qfalse;	//stop the blink
+			}
+		}
+		else // no we aren't blinking 
+		{
+			if (gent->client->facial_blink < level.time)// but should we start ?
+			{
+				blink= qtrue;
+				if (gent->client->facial_blink == 1)
+				{//requested to stay shut by SET_FACEEYESCLOSED
+					gent->client->facial_blink = -(level.time + 99999999.0f);// set blink timer
+				}
+				else
+				{
+					gent->client->facial_blink = -(level.time + 300.0f);// set blink timer
+				}
+			}
+		}
+
+
+		if (gi.VoiceVolume[gent->s.clientNum] > 0)	// if we aren't talking, then it will be 0, -1 for talking but paused
+		{
+			anim = FACE_TALK1 + gi.VoiceVolume[gent->s.clientNum] - 1;
+		}
+		else if (gi.VoiceVolume[gent->s.clientNum] == 0)	//don't do aux if in a slient part of speech
+		{//not talking
+			if (gent->client->facial_aux < 0)	// are we auxing ?
+			{	//yes
+				if (-(gent->client->facial_aux) < level.time)// are we done auxing ?
+				{	// yes, reset aux timer
+					gent->client->facial_aux = level.time + Q_flrand(7000.0, 10000.0);
+				}
+				else
+				{	// not yet, so choose aux
+					anim = FACE_ALERT;
+				}
+			}
+			else // no we aren't auxing 
+			{	// but should we start ?
+				if (gent->client->facial_aux < level.time)
+				{//yes
+					anim = FACE_ALERT;
+					// set aux timer
+					gent->client->facial_aux = -(level.time + 2000.0);
+				}
+			}
+
+			if (anim != -1)	//we we are auxing, see if we should override with a frown
+			{
+				if (gent->client->facial_frown < 0)// are we frowning ?
+				{	// yes, 
+					if (-(gent->client->facial_frown) < level.time)//are we done frowning ?
+					{	// yes, reset frown timer
+						gent->client->facial_frown = level.time + Q_flrand(7000.0, 10000.0);
+					}
+					else
+					{	// not yet, so choose frown
+						anim = FACE_FROWN;
+					}
+				}
+				else// no we aren't frowning 
+				{	// but should we start ?
+					if (gent->client->facial_frown < level.time)
+					{
+						anim = FACE_FROWN;
+						// set frown timer
+						gent->client->facial_frown = -(level.time + 2000.0);
+					}
+				}
+			}
+
+		}//talking
+	}//dead
+	if (anim != -1)
+	{
+		gent->s.apos.trDuration = anim;
+		if (blink) {
+			gent->s.apos.trDuration |= (1 << 16);
+		}
+		return qtrue;
+	}
+	return qfalse;
+}
+
 /*
 ===============
 NPC_Think
@@ -2174,6 +2294,7 @@ void NPC_Think ( gentity_t *self)//, int msec )
 	if( self->taskManager && !stop_icarus )
 	{
 		self->taskManager->Update();
+		G_CG_G2PlayerHeadAnims(self);
 	}
 }
 
