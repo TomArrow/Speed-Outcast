@@ -1407,6 +1407,10 @@ void G_RunFrame( int levelTime ) {
 		G_RunThink( ent );	// be aware that ent may be free after returning from here, at least one func frees them
 		ClearNPCGlobals();			//	but these 2 funcs are ok
 		//UpdateTeamCounters( ent );	//	   to call anyway on a freed ent.
+
+		if (ent->client) {
+			ent->s.boltInfo = ent->client->ps.saberMove; // Save that into the demo.
+		}
 	}
 
 	// perform final fixups on the player
