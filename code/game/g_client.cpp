@@ -1251,11 +1251,13 @@ void G_SetG2PlayerModel( gentity_t * const ent, const char *modelName, const cha
 	//now generate the ghoul2 model this client should be.
 	//NOTE: for some reason, it still loads the default skin's tga's?  Because they're referenced in the .glm?
 	ent->s.modelindex = G_ModelIndex(va("models/players/%s/model.glm", modelName));
-	ent->playerModel = gi.G2API_InitGhoul2Model( ent->ghoul2, va("models/players/%s/model.glm", modelName), ent->s.modelindex, G_SkinIndex( skinName ), NULL, 0, 0 );
+	ent->s.modelindex2 = G_SkinIndex(skinName);
+	ent->playerModel = gi.G2API_InitGhoul2Model( ent->ghoul2, va("models/players/%s/model.glm", modelName), ent->s.modelindex, ent->s.modelindex2, NULL, 0, 0 );
 	if (ent->playerModel == -1)
 	{//try the stormtrooper as a default
 		modelName = "stormtrooper";
 		ent->s.modelindex = G_ModelIndex(va("models/players/%s/model.glm", modelName));
+		//ent->s.modelindex2 = G_SkinIndex("default");
 		ent->playerModel = gi.G2API_InitGhoul2Model( ent->ghoul2, va("models/players/%s/model.glm", modelName), ent->s.modelindex, NULL, NULL, 0, 0 );
 	}
 
