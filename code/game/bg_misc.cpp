@@ -584,6 +584,8 @@ void PlayerStateToEntityState( playerState_t *ps, entityState_t *s ) {
 			s->powerups |= 1 << i;
 		}
 	}
+
+	s->modelindex3 = ps->saberColor;
 #if 0
 	if ( ps->externalEvent ) {
 		s->event = ps->externalEvent;
