@@ -2054,6 +2054,10 @@ static qboolean G_Dismember( gentity_t *ent, vec3_t point,
 	gi.linkentity( limb );
 
 	limb->s.eType = ET_THINKER;//ET_GENERAL;
+
+	limb->s.modelindex3 = hitLoc; // let us have the hitloc for the limb so we know which limb it is
+	limb->s.clientNum = 1 + (ent - g_entities); // so we know who was dismembered. 1+ because if it's 0 we assume the info isnt available
+
 	limb->physicsBounce = 0.2f;
 	limb->s.pos.trType = TR_GRAVITY;
 	limb->s.pos.trTime = level.time;								// move a bit on the very first frame
