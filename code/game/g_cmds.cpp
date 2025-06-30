@@ -5,6 +5,7 @@
 #include "g_local.h"
 #include "objectives.h"
 #include "wp_saber.h"
+#include "g_functions.h"
 
 extern	bool		in_camera;
 
@@ -455,6 +456,48 @@ void Cmd_God_f (gentity_t *ent)
 		msg = "godmode ON\n";
 
 	gi.SendServerCommand( ent-g_entities, "print \"%s\"", msg);
+}
+/*
+==================
+Cmd_BreakAll_f
+
+Breaks all breakables.
+
+argv(0) god
+==================
+*/
+void Cmd_BreakAll_f(gentity_t *ent)
+{
+	char	*msg;
+	int			i;
+	gentity_t* gent;
+	char	arg[20] = { 0 };
+	qboolean	nearby = qfalse;
+	vec3_t center;
+
+	if ( !CheatsOk( ent ) ) {
+		return;
+	}
+
+	if (gi.argc() > 1) {
+		if (!Q_stricmp(gi.argv(1),"nearby") || !Q_stricmp(gi.argv(1), "visible")) {
+			nearby = qtrue;
+		}
+	}
+
+	for (i = 0; i < MAX_GENTITIES; i++) {
+		gent = g_entities + i;
+		if (gent->inuse && gent->classname && !Q_stricmp(gent->classname, "func_breakable")) {
+			if (nearby) {
+				VectorAdd(gent->mins,gent->maxs,center);
+				VectorScale(center, 0.5f, center);
+				if (!gi.inPVS(ent->s.pos.trBase, center)) {
+					continue;
+				}
+			}
+			GEntity_DieFunc(gent, ent, ent, 9999, MOD_SABER);
+		}
+	}
 }
 
 /*
@@ -1034,6 +1077,8 @@ void ClientCommand( int clientNum ) {
 		Cmd_Give_f (ent);
 	else if (Q_stricmp (cmd, "god") == 0)
 		Cmd_God_f (ent);
+	else if (Q_stricmp (cmd, "breakall") == 0)
+		Cmd_BreakAll_f (ent);
 	else if (Q_stricmp (cmd, "undying") == 0)
 		Cmd_Undying_f (ent);
 	else if (Q_stricmp (cmd, "notarget") == 0)
